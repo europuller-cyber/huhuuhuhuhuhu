@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07080c">
+<title>Life Tracker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#07080c; --tx:#f5f2ec; --mut:rgba(245,242,236,.48); --acc:#e6d3a3; --dng:#ff7070;
+  --line:rgba(255,255,255,.09);
+  --spring:cubic-bezier(.34,1.56,.64,1); --out:cubic-bezier(.16,1,.3,1); --in:cubic-bezier(.5,0,1,.6);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,"SF Pro Display","SF Pro Text",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
+
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:radial-gradient(120% 80% at 50% 0%,#10131c 0%,var(--bg) 60%)}
+.bg i{position:absolute;border-radius:50%;will-change:transform}
+.o1{width:90vmax;height:90vmax;left:-45vmax;top:-40vmax;background:radial-gradient(circle,rgba(70,92,190,.34),transparent 62%);animation:f1 26s ease-in-out infinite alternate}
+.o2{width:80vmax;height:80vmax;right:-48vmax;top:28vh;background:radial-gradient(circle,rgba(230,211,163,.16),transparent 62%);animation:f2 32s ease-in-out infinite alternate}
+.o3{width:90vmax;height:90vmax;left:-30vmax;bottom:-55vmax;background:radial-gradient(circle,rgba(30,120,130,.22),transparent 62%);animation:f3 28s ease-in-out infinite alternate}
+@keyframes f1{to{transform:translate3d(18vmax,10vmax,0) scale(1.15)}}
+@keyframes f2{to{transform:translate3d(-16vmax,-12vmax,0) scale(1.2)}}
+@keyframes f3{to{transform:translate3d(14vmax,-10vmax,0) scale(1.1)}}
+
+#app{max-width:560px;margin:0 auto;padding:calc(max(env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 14px) 16px 140px;will-change:transform,opacity}
+.in-r{animation:inr .55s var(--out)} .in-l{animation:inl .55s var(--out)} .in-0{animation:in0 .6s var(--out)}
+@keyframes inr{from{transform:translate3d(38px,0,0);opacity:0}}
+@keyframes inl{from{transform:translate3d(-38px,0,0);opacity:0}}
+@keyframes in0{from{opacity:0}}
+.enter .stg{animation:rise .65s var(--out) both;animation-delay:calc(var(--i,0)*48ms)}
+@keyframes rise{from{opacity:0;transform:translate3d(0,18px,0) scale(.985)}}
+
+.glass{background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:0 10px 36px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.13);border-radius:24px}
+.card{padding:18px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sp{flex:1;min-width:0}
+.cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:500}
+.dim{color:var(--mut)}
+h1{margin:2px 0 0;font-size:30px;font-weight:300;letter-spacing:-.03em}
+.big{font-size:44px;font-weight:200;letter-spacing:-.04em;line-height:1.05}
+.big small{font-size:20px;font-weight:300;color:var(--mut);margin-left:4px}
+.mid{font-size:17px;font-weight:300}
+.sub{font-size:13px;color:var(--mut)}
+
+button{font:inherit;border:0;color:inherit;background:none;cursor:pointer;position:relative;transition:transform .55s var(--spring),filter .3s,opacity .3s}
+button.pr{transform:scale(.93);transition-duration:.12s;transition-timing-function:ease-out}
+.btn{background:linear-gradient(135deg,#f3e6bd,#d0b87d);color:#17130a;font-weight:600;border-radius:16px;padding:12px 20px;overflow:hidden;box-shadow:0 8px 24px rgba(230,211,163,.16),inset 0 1px 0 rgba(255,255,255,.55)}
+.btn.sec{background:rgba(255,255,255,.08);color:var(--tx);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+.ghost{color:var(--acc);padding:8px 10px;font-weight:500}
+.ghost.sm{padding:4px 0;font-size:13px}
+.ic{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:var(--tx)}
+.ic svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);transform:scale(0);animation:rip .65s var(--out) forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+
+.hd{display:flex;align-items:center;gap:6px;margin-bottom:14px}
+.hd .ctr{flex:1;text-align:center}
+
+.hero.full{animation:glow 1.3s var(--out)}
+@keyframes glow{40%{box-shadow:0 0 0 1px rgba(230,211,163,.5),0 0 46px rgba(230,211,163,.28),inset 0 1px 0 rgba(255,255,255,.2)}}
+.bar{height:4px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:16px}
+.bar.thin{height:3px;margin-top:10px}
+.bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,#b99e5f,var(--acc));box-shadow:0 0 12px rgba(230,211,163,.5);transition:width .9s var(--out)}
+
+input,textarea,select{font:inherit;font-size:16px;width:100%;color:var(--tx);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:15px;padding:13px 15px;outline:none;transition:border-color .3s,background .3s,box-shadow .3s;-webkit-appearance:none;appearance:none}
+input:focus,textarea:focus,select:focus{border-color:rgba(230,211,163,.55);background:rgba(255,255,255,.09);box-shadow:0 0 0 4px rgba(230,211,163,.08)}
+input::placeholder,textarea::placeholder{color:var(--mut)}
+select{padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23999' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+select option{background:#14161d;color:#fff}
+.mini-sel{width:auto;padding:10px 32px 10px 14px;border-radius:14px;font-size:14px}
+label{display:block;margin:14px 2px 6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.swipe{position:relative;border-radius:20px;overflow:hidden;margin-bottom:8px;touch-action:pan-y}
+.sw-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 24px;opacity:0;transition:opacity .2s}
+.swipe[data-dir] .sw-bg{opacity:1}
+.swipe[data-dir=r] .sw-bg{background:linear-gradient(90deg,rgba(230,211,163,.34),rgba(230,211,163,.08))}
+.swipe[data-dir=l] .sw-bg{background:linear-gradient(270deg,rgba(255,112,112,.38),rgba(255,112,112,.08))}
+.swipe[data-dir=r] .sw-l,.swipe[data-dir=l] .sw-r{display:none}
+.sw-bg svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:var(--p,0);transform:scale(calc(.55 + var(--p,0)*.45));transition:transform .35s var(--spring)}
+.swipe.hit .sw-bg svg{transform:scale(1.3)}
+.sw-fg{position:relative;display:flex;align-items:center;gap:14px;padding:15px 16px;background:rgba(26,28,38,.80);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--line);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);will-change:transform;transition:transform .55s var(--spring)}
+.swipe.pr .sw-fg{transform:scale(.982);transition-duration:.12s}
+.swipe.pop{animation:pop .6s var(--spring)}
+@keyframes pop{from{opacity:0;transform:scale(.88) translateY(-8px)}}
+.amt{font-weight:300;font-size:18px;letter-spacing:-.01em;white-space:nowrap}
+.amts{text-align:right}
+
+.chk{width:27px;height:27px;border-radius:50%;border:1.5px solid rgba(255,255,255,.32);display:grid;place-items:center;flex:none;transform:scale(.92);transition:transform .5s var(--spring),background .35s,border-color .35s,box-shadow .35s}
+.chk svg{width:15px;height:15px;stroke:#17130a;fill:none;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .45s .08s var(--out)}
+.chk.pr{transform:scale(.78);transition-duration:.12s}
+.done .chk{background:var(--acc);border-color:var(--acc);transform:scale(1);box-shadow:0 0 18px rgba(230,211,163,.45)}
+.done .chk svg{stroke-dashoffset:0}
+.t{text-decoration:line-through;text-decoration-color:transparent;transition:color .4s,text-decoration-color .4s}
+.done .t{color:var(--mut);text-decoration-color:rgba(245,242,236,.5)}
+.done .amt{color:var(--mut)}
+.empty{text-align:center;padding:34px 0 18px;color:var(--mut);font-weight:300;letter-spacing:.02em}
+
+.grp{margin:24px 6px 0}
+.grp+.bar{margin:10px 6px 14px}
+
+.chart{display:flex;align-items:flex-end;gap:8px;height:96px;margin-top:20px}
+.chart div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px}
+.chart b{display:block;width:100%;max-width:34px;border-radius:9px 9px 4px 4px;background:rgba(255,255,255,.16);transform-origin:bottom;animation:grow .9s var(--out) both;min-height:3px}
+.chart .cur b{background:linear-gradient(180deg,var(--acc),#a98f56);box-shadow:0 0 18px rgba(230,211,163,.35)}
+.chart small{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+@keyframes grow{from{transform:scaleY(0)}}
+
+.lang{padding:0;overflow:hidden}
+.lang-h{display:flex;align-items:center;gap:14px;padding:18px;width:100%;text-align:left}
+.lang-h.pr{transform:scale(.985)}
+.nm{font-size:19px;font-weight:400;letter-spacing:-.01em}
+.spark{display:flex;align-items:flex-end;gap:3px;height:28px}
+.spark i{width:5px;border-radius:3px;background:rgba(255,255,255,.18);min-height:3px}
+.spark i.on{background:var(--acc)}
+.hrs{text-align:right;min-width:54px}
+.hrs b{font-size:26px;font-weight:200;letter-spacing:-.03em}
+.hrs small{color:var(--mut);margin-left:2px}
+.exp{display:grid;grid-template-rows:0fr;transition:grid-template-rows .55s var(--out)}
+.exp.open{grid-template-rows:1fr}
+.exp>div{overflow:hidden;min-height:0}
+.exp .in{padding:0 14px 14px;opacity:0;transition:opacity .4s}
+.exp.open .in{opacity:1;transition-delay:.12s}
+.meta{padding:0 18px 16px;margin-top:-6px}
+
+nav{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(92vw,420px);display:flex;padding:6px;z-index:10;border-radius:30px}
+nav .ind{position:absolute;top:6px;bottom:6px;left:6px;width:calc((100% - 12px)/4);border-radius:24px;background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.2);transition:transform .6s var(--spring)}
+nav button{flex:1;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border-radius:24px;transition:color .35s,transform .55s var(--spring)}
+nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .55s var(--spring)}
+nav button.on{color:var(--acc)}
+nav button.on svg{transform:translateY(-1px) scale(1.08)}
+nav button.pr{transform:scale(.9)}
+
+.sheet-bg{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;background:rgba(2,3,6,calc(.55*var(--o,1)));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);animation:fade .35s var(--out);transition:background .3s}
+@keyframes fade{from{background:rgba(2,3,6,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0)}}
+.sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:10px 20px calc(22px + env(safe-area-inset-bottom));border-radius:30px 30px 0 0;background:linear-gradient(160deg,rgba(40,43,58,.86),rgba(18,20,28,.92));-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);border:1px solid var(--line);border-bottom:0;box-shadow:0 -20px 60px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.16);animation:sheetin .6s var(--spring);will-change:transform}
+@keyframes sheetin{from{transform:translate3d(0,100%,0)}}
+.grab{width:38px;height:5px;border-radius:5px;background:rgba(255,255,255,.22);margin:2px auto 14px}
+.sheet h2{margin:0 0 4px;font-size:24px;font-weight:300;letter-spacing:-.02em}
+.sheet .acts{display:flex;align-items:center;gap:10px;margin-top:22px}
+.danger{color:var(--dng);padding:10px 12px;font-weight:500}
+
+#toast{position:fixed;left:50%;bottom:calc(98px + env(safe-area-inset-bottom));transform:translate3d(-50%,30px,0) scale(.94);opacity:0;pointer-events:none;z-index:40;display:flex;align-items:center;gap:6px;padding:8px 8px 8px 20px;border-radius:22px;background:rgba(30,32,44,.88);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--line);box-shadow:0 12px 40px rgba(0,0,0,.5);transition:transform .55s var(--spring),opacity .3s;font-size:15px}
+#toast.show{transform:translate3d(-50%,0,0) scale(1);opacity:1;pointer-events:auto}
+
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="bg"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
+<main id="app"></main>
+<nav id="nav" class="glass"></nav>
+<div id="toast"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+try {
+  if (tg) {
+    tg.ready(); tg.expand();
+    tg.disableVerticalSwipes && tg.disableVerticalSwipes();
+    tg.setHeaderColor && tg.setHeaderColor('#07080c');
+    tg.setBackgroundColor && tg.setBackgroundColor('#07080c');
+    tg.setBottomBarColor && tg.setBottomBarColor('#07080c');
+  }
+} catch (e) {}
+
+/* ---------- haptics ---------- */
+function hap(k) {
+  try {
+    const h = tg && tg.HapticFeedback;
+    if (h) {
+      if (k === 'sel') h.selectionChanged();
+      else if (k === 'ok') h.notificationOccurred('success');
+      else if (k === 'warn') h.notificationOccurred('warning');
+      else if (k === 'err') h.notificationOccurred('error');
+      else h.impactOccurred(k);
+    } else if (navigator.vibrate) {
+      navigator.vibrate({ light: 8, soft: 6, medium: 16, heavy: 28, rigid: 12, sel: 5, ok: [10, 40, 10], warn: [20, 30, 20], err: [30, 40, 30] }[k] || 8);
+    }
+  } catch (e) {}
+}
+
+/* ---------- confetti ---------- */
+const cv = document.getElementById('confetti'), cx = cv.getContext('2d');
+let parts = [], raf = 0, lastT = 0, CW = 0, CH = 0;
+function sizeCv() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  CW = window.innerWidth; CH = window.innerHeight;
+  cv.width = CW * dpr; cv.height = CH * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', sizeCv); sizeCv();
+const CONF = ['#e6d3a3', '#ffffff', '#8fb0ff', '#6ee7c8', '#ff9bb0', '#ffd37a', '#c9a6ff'];
+function confetti(x, y, n) {
+  n = n || 72;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.3, v = 6 + Math.random() * 11;
+    parts.push({
+      x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: .3 + Math.random() * .12,
+      w: 6 + Math.random() * 7, h: 3 + Math.random() * 5, r: Math.random() * 6.28, vr: (Math.random() - .5) * .4,
+      c: CONF[(Math.random() * CONF.length) | 0], life: 0, max: 75 + Math.random() * 55, circ: Math.random() < .28, fl: Math.random() * 6
+    });
+  }
+  if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(tickConf); }
+}
+function confettiFrom(el) {
+  const c = el.querySelector('.chk') || el, r = c.getBoundingClientRect();
+  confetti(r.left + r.width / 2, r.top + r.height / 2);
+}
+function tickConf(now) {
+  const dt = Math.min(2.5, (now - lastT) / 16.667); lastT = now;
+  cx.clearRect(0, 0, CW, CH);
+  parts = parts.filter(p => p.life < p.max && p.y < CH + 50);
+  for (const p of parts) {
+    p.life += dt; p.vx *= Math.pow(.985, dt); p.vy += p.g * dt; p.vy *= Math.pow(.992, dt);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt; p.fl += .16 * dt;
+    cx.save(); cx.globalAlpha = Math.max(0, Math.min(1, (p.max - p.life) / 26));
+    cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c;
+    if (p.circ) { cx.beginPath(); cx.arc(0, 0, p.w / 2.3, 0, 6.283); cx.fill(); }
+    else { cx.scale(1, Math.cos(p.fl)); cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); }
+    cx.restore();
+  }
+  if (parts.length) raf = requestAnimationFrame(tickConf); else { raf = 0; cx.clearRect(0, 0, CW, CH); }
+}
+
+/* ---------- utils / state ---------- */
+const $ = s => document.querySelector(s);
+const KEY = 'lifetracker.v2';
+const CUR = { GEL: '₾', USD: '$', EUR: '€', RUB: '₽' };
+const curOpts = Object.keys(CUR).map(c => [c, c]);
+const uid = () => Math.random().toString(36).slice(2, 9);
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayStr = () => ymd(new Date());
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function money(v, d) {
+  return Number(v).toLocaleString('en-US', d === 2 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 2 });
+}
+const CEFR = ['', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const cefrOpts = CEFR.map(c => [c, c || '—']);
+const GROUPS = [
+  ['urgent', 'Urgent: the brand burns', 'Urgent'],
+  ['people', 'Circle of people', 'Circle of people'],
+  ['bank', 'Bank demons', 'Bank demons']
+];
+const RATE = 129386 / 1600;
+
+function seedDebts() {
+  const d = (n, note, rub, grp, done) => ({ id: uid(), n, note, rub, grp, done: !!done });
+  return [
+    d('Credit card', 'urgent payment', 31000, 'urgent'),
+    d('Loan', 'urgent debt', 24000, 'urgent'),
+    d('Mom', '', 65000, 'people'),
+    d('Nikita', '', 6000, 'people'),
+    d('Egor Samokhin', '', 12500, 'people'),
+    d('Gleb Skvirya', '', 6000, 'people'),
+    d('Egor the Editor', '', 1000, 'people'),
+    d('Danya', '', 7000, 'people', true),
+    d('Sister', '', 12500, 'people'),
+    d('Laptop', '', 37000, 'people', true),
+    d('Gleb the Canadian', '', 129386, 'people'),
+    d('Credit card', 'remainder after urgent', 129000, 'bank'),
+    d('Loan', 'remainder after urgent', 288000, 'bank')
+  ];
+}
+function defaults() {
+  return {
+    ts: 0, salary: [], goal: 0, rate: RATE, debts: seedDebts(),
+    langs: ['English', 'Georgian', 'French', 'Spanish', 'Italian', 'Chinese']
+      .map(n => ({ id: uid(), name: n, level: '', goal: n === 'English' ? 'C1' : '', logs: [] })),
+    wishes: [], cur: 'GEL'
+  };
+}
+function migrate(o) {
+  if (!o.debts) o.debts = seedDebts();
+  if (!o.rate) o.rate = RATE;
+  if (o.goal == null) o.goal = 0;
+  if (!o.salary) o.salary = []; if (!o.langs) o.langs = []; if (!o.wishes) o.wishes = []; if (!o.cur) o.cur = 'GEL';
+  return o;
+}
+let S;
+try { S = migrate(JSON.parse(localStorage.getItem(KEY)) || defaults()); } catch (e) { S = defaults(); }
+
+let cloudTimer;
+function save() {
+  S.ts = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudSave, 800);
+}
+function cloudSave() {
+  const cs = tg && tg.CloudStorage; if (!cs || !cs.setItem) return;
+  try {
+    const parts = JSON.stringify(S).match(/[\s\S]{1,3000}/g) || [];
+    parts.forEach((p, i) => cs.setItem('v2d' + i, p));
+    cs.setItem('v2n', String(parts.length));
+  } catch (e) {}
+}
+function cloudLoad() {
+  const cs = tg && tg.CloudStorage; if (!cs || !cs.getItem) return;
+  try {
+    cs.getItem('v2n', (err, n) => {
+      n = +n; if (err || !n) return;
+      const keys = Array.from({ length: n }, (_, i) => 'v2d' + i);
+      cs.getItems(keys, (e, vals) => {
+        if (e || !vals) return;
+        try {
+          const obj = JSON.parse(keys.map(k => vals[k] || '').join(''));
+          if (obj && obj.ts > (S.ts || 0)) { S = migrate(obj); localStorage.setItem(KEY, JSON.stringify(S)); render(); }
+        } catch (x) {}
+      });
+    });
+  } catch (e) {}
+}
+
+/* ---------- icons ---------- */
+const IC = {
+  card: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12.500" rx="3.500"/><path d="M3 10.500h18M7 15h3.500"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24"><path d="M4 8V7a2.500 2.500 0 0 1 2.500-2.500H17.500V8"/><rect x="3.500" y="8" width="17" height="11.500" rx="3.500"/><circle cx="16.500" cy="13.700" r=".9" fill="currentColor"/></svg>',
+  globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M3.500 12h17M12 3.500c2.500 2.500 3.500 5.300 3.500 8.500S14.500 18 12 20.500C9.500 18 8.500 15.200 8.500 12S9.500 6 12 3.500z"/></svg>',
+  gift: '<svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="3"/><path d="M12 9v11M4 13.500h16M12 9C9.800 9 8 8 8 6.500S9.500 4.500 11 5.500 12 9 12 9zm0 0c2.200 0 4-1 4-2.500S14.500 4.500 13 5.500 12 9 12 9z"/></svg>',
+  chk: '<svg viewBox="0 0 24 24"><path d="M6 12.500l4 4 8-9"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l.8 12a1.500 1.500 0 0 0 1.500 1.400h5.400a1.500 1.500 0 0 0 1.500-1.400L17 7"/></svg>',
+  l: '<svg viewBox="0 0 24 24"><path d="M14.500 6l-6 6 6 6"/></svg>',
+  r: '<svg viewBox="0 0 24 24"><path d="M9.500 6l6 6-6 6"/></svg>'
+};
+const TABS = [['debts', 'Debts', IC.card], ['salary', 'Income', IC.wallet], ['langs', 'Languages', IC.globe], ['wish', 'Wishes', IC.gift]];
+const tabIdx = () => TABS.findIndex(t => t[0] === tab);
+
+let tab = 'debts', M = todayStr().slice(0, 7), openLang = null, lastAdded = null;
+
+function row(kind, id, inner, o) {
+  o = o || {};
+  return `<div class="swipe stg ${o.cls || ''}" data-kind="${kind}" data-id="${id}" data-lid="${o.lid || ''}" data-r="${o.right ? 1 : 0}">
+    <div class="sw-bg"><span class="sw-r">${o.right ? IC.chk : ''}</span><span class="sw-l">${IC.trash}</span></div>
+    <div class="sw-fg">${inner}</div></div>`;
+}
+function sumBy(list) { const r = {}; list.forEach(e => { r[e.cur] = (r[e.cur] || 0) + Number(e.amount); }); return r; }
+const num = (k, v, o) => { o = o || {}; return `<span class="num" data-k="${k}" data-v="${v}" data-p="${o.p || ''}" data-s="${o.s || ''}" data-d="${o.d == null ? '' : o.d}">0</span>`; };
+const usd = rub => '$' + money(rub / S.rate, 2);
+const pctTxt = p => (Math.round(p * 10) / 10) + '%';
+
+/* ---------- debts ---------- */
+function dStats(list) {
+  const tot = list.reduce((a, d) => a + d.rub, 0), paid = list.filter(d => d.done).reduce((a, d) => a + d.rub, 0);
+  return { tot, paid, rem: tot - paid, n: list.length, nd: list.filter(d => d.done).length, pct: tot ? paid / tot * 100 : 0 };
+}
+function debtVals() {
+  const st = dStats(S.debts);
+  return { 'd-rem-r': st.rem, 'd-rem-u': st.rem / S.rate, 'd-tot-r': st.tot, 'd-tot-u': st.tot / S.rate, 'd-paid-r': st.paid, 'd-paid-u': st.paid / S.rate };
+}
+function viewDebts() {
+  const st = dStats(S.debts), v = debtVals();
+  const groups = GROUPS.map(g => {
+    const list = S.debts.filter(d => d.grp === g[0]); if (!list.length) return '';
+    const gs = dStats(list);
+    return `<div class="between grp stg"><span class="cap">${g[1]}</span><span class="sub" id="gc-${g[0]}">${gs.nd} / ${gs.n}</span></div>
+      <div class="bar stg"><i id="gb-${g[0]}" data-w="${gs.pct}"></i></div>
+      <div>${list.map(d => row('debt', d.id, `<div class="chk" data-dt="${d.id}">${IC.chk}</div><div class="sp t"><div>${esc(d.n)}</div>${d.note ? `<div class="sub">${esc(d.note)}</div>` : ''}</div><div class="amts"><div class="amt">${money(d.rub)} ₽</div><div class="sub">${usd(d.rub)}</div></div>`, { right: true, cls: d.done ? 'done' : '' })).join('')}</div>`;
+  }).join('');
+  return `
+  <div class="hd stg"><div class="sp" style="padding-left:6px"><div class="cap">Overview</div><h1>Debts</h1></div><button class="ghost" data-a="adddebt">Add</button></div>
+  <section class="glass card hero stg ${st.n && st.nd === st.n ? 'full' : ''}" id="hero">
+    <div class="cap">Remaining</div>
+    <div class="big">${num('d-rem-r', v['d-rem-r'], { s: ' ₽' })}</div>
+    <div class="mid dim">${num('d-rem-u', v['d-rem-u'], { p: '$', d: 2 })}</div>
+    <div class="bar"><i id="dbar" data-w="${st.pct}"></i></div>
+    <div class="between sub" style="margin-top:8px"><span id="dpct">${pctTxt(st.pct)} paid off</span><span id="dcount">${st.nd} / ${st.n}</span></div>
+    <div class="grid2" style="margin-top:18px">
+      <div><div class="cap">Total</div><div class="mid" style="margin-top:4px">${num('d-tot-r', v['d-tot-r'], { s: ' ₽' })}</div><div class="sub">${num('d-tot-u', v['d-tot-u'], { p: '$', d: 2 })}</div></div>
+      <div><div class="cap">Paid off</div><div class="mid" style="margin-top:4px">${num('d-paid-r', v['d-paid-r'], { s: ' ₽' })}</div><div class="sub">${num('d-paid-u', v['d-paid-u'], { p: '$', d: 2 })}</div></div>
+    </div>
+    <button class="ghost sm" data-a="rate" style="margin-top:12px">$1 = ₽${money(S.rate, 2)}</button>
+  </section>
+  ${S.debts.length ? groups : '<div class="empty stg">No debts</div>'}`;
+}
+function updateDebts() {
+  const st = dStats(S.debts), v = debtVals();
+  document.querySelectorAll('.num').forEach(el => { if (el.dataset.k in v) el.dataset.v = v[el.dataset.k]; });
+  runCounts();
+  const set = (id, t) => { const n = document.getElementById(id); if (n) n.textContent = t; };
+  const b = $('#dbar'); if (b) b.style.width = st.pct + '%';
+  set('dpct', pctTxt(st.pct) + ' paid off'); set('dcount', st.nd + ' / ' + st.n);
+  GROUPS.forEach(g => {
+    const gs = dStats(S.debts.filter(d => d.grp === g[0]));
+    set('gc-' + g[0], gs.nd + ' / ' + gs.n);
+    const gb = document.getElementById('gb-' + g[0]); if (gb) gb.style.width = gs.pct + '%';
+  });
+  const h = $('#hero'); if (h) { h.classList.remove('full'); if (st.n && st.nd === st.n) { void h.offsetWidth; h.classList.add('full'); } }
+}
+function toggleDebt(id, rowEl) {
+  const d = S.debts.find(x => x.id === id); if (!d) return;
+  d.done = !d.done; save();
+  rowEl = rowEl || document.querySelector(`.swipe[data-id="${id}"]`);
+  if (rowEl) { rowEl.classList.toggle('done', d.done); if (d.done) confettiFrom(rowEl); }
+  updateDebts();
+  hap(d.done ? 'ok' : 'light');
+}
+
+/* ---------- income ---------- */
+function monthName(m) { const [y, mo] = m.split('-').map(Number); return new Date(y, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+function shiftMonth(n) {
+  let [y, m] = M.split('-').map(Number); m += n;
+  while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; }
+  M = y + '-' + pad(m); render(n);
+}
+function viewSalary() {
+  const inM = S.salary.filter(e => e.date.startsWith(M)).sort((a, b) => b.date.localeCompare(a.date));
+  const tm = sumBy(inM), yr = sumBy(S.salary.filter(e => e.date.startsWith(M.slice(0, 4)))), main = S.cur;
+  let [y, m] = M.split('-').map(Number); const vals = [];
+  for (let i = 5; i >= 0; i--) {
+    let mm = m - i, yy = y; while (mm < 1) { mm += 12; yy--; }
+    const k = yy + '-' + pad(mm);
+    vals.push([k, S.salary.filter(e => e.date.startsWith(k) && e.cur === main).reduce((a, e) => a + Number(e.amount), 0), mm]);
+  }
+  const mx = Math.max(1, ...vals.map(v => v[1]));
+  const MN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const bars = vals.map((v, i) => `<div class="${v[0] === M ? 'cur' : ''}"><b style="height:${Math.max(3, v[1] / mx * 70)}px;animation-delay:${i * 70}ms"></b><small>${MN[v[2]]}</small></div>`).join('');
+  const keys = Object.keys(tm);
+  const big = keys.length ? keys.map(c => `<div class="big">${num('m-' + c, tm[c], { s: ' ' + (CUR[c] || c) })}</div>`).join('') : `<div class="big">${num('m-' + main, 0, { s: ' ' + CUR[main] })}</div>`;
+  const yk = Object.keys(yr);
+  const got = tm[main] || 0, gp = S.goal ? Math.min(100, got / S.goal * 100) : 0;
+  return `
+  <div class="hd stg"><button class="ic" data-a="mprev">${IC.l}</button><div class="ctr"><div class="cap">Income</div><h1>${monthName(M)}</h1></div><button class="ic" data-a="mnext">${IC.r}</button></div>
+  <section class="glass card stg">
+    <div class="cap">This month</div>${big}
+    <div class="bar"><i data-w="${gp}"></i></div>
+    <div class="between sub" style="margin-top:8px"><span>${S.goal ? `${pctTxt(gp)} of ${money(S.goal)} ${CUR[main]} goal` : 'No monthly goal set'}</span><button class="ghost sm" data-a="goal">${S.goal ? 'Edit goal' : 'Set goal'}</button></div>
+    <div class="cap" style="margin-top:14px">${M.slice(0, 4)} total</div>
+    <div class="mid">${yk.length ? yk.map(c => money(yr[c]) + ' ' + (CUR[c] || c)).join(' · ') : '0'}</div>
+    <div class="chart">${bars}</div>
+  </section>
+  <div class="row stg" style="margin-bottom:14px"><button class="btn sp" data-a="addsal">Add income</button><select class="mini-sel glass" data-a="curmain">${Object.keys(CUR).map(c => `<option ${c === main ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+  <div>${inM.length ? inM.map(e => row('sal', e.id, `<div class="sp"><div>${esc(e.note || 'Salary')}</div><div class="sub">${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</div></div><div class="amt">${money(e.amount)} ${CUR[e.cur] || e.cur}</div>`)).join('') : '<div class="empty stg">No entries this month</div>'}</div>`;
+}
+
+/* ---------- languages ---------- */
+function langStats(l) {
+  const total = l.logs.reduce((a, x) => a + Number(x.min), 0), days = new Set(l.logs.map(x => x.date));
+  let streak = 0; const d = new Date(); if (!days.has(ymd(d))) d.setDate(d.getDate() - 1);
+  while (days.has(ymd(d))) { streak++; d.setDate(d.getDate() - 1); }
+  const week = []; for (let i = 6; i >= 0; i--) { const x = new Date(); x.setDate(x.getDate() - i); const k = ymd(x); week.push(l.logs.filter(y => y.date === k).reduce((a, y) => a + Number(y.min), 0)); }
+  const lv = CEFR.indexOf(l.level), gl = CEFR.indexOf(l.goal);
+  const pct = gl > 0 ? Math.min(100, Math.max(0, lv) / gl * 100) : 0;
+  return { total, streak, week, w: week.reduce((a, b) => a + b, 0), pct, hasGoal: gl > 0 };
+}
+function viewLangs() {
+  const all = S.langs.map(langStats);
+  const goals = all.filter(s => s.hasGoal);
+  const avg = goals.length ? goals.reduce((a, s) => a + s.pct, 0) / goals.length : 0;
+  const totH = all.reduce((a, s) => a + s.total, 0) / 60;
+  return `<div class="hd stg"><div class="sp" style="padding-left:6px"><div class="cap">Progress</div><h1>Languages</h1></div><button class="ghost" data-a="addlang">Add</button></div>
+  <section class="glass card stg"><div class="cap">Total practice</div><div class="big">${num('l-h', Math.round(totH * 10) / 10, { d: 1 })}<small>h</small></div>
+    <div class="bar"><i data-w="${avg}"></i></div>
+    <div class="between sub" style="margin-top:8px"><span>Progress to goals</span><span>${pctTxt(avg)}</span></div></section>` +
+    (S.langs.length ? S.langs.map((l, i) => {
+      const st = all[i], mx = Math.max(30, ...st.week), open = openLang === l.id;
+      const logs = l.logs.slice().sort((a, b) => b.date.localeCompare(a.date));
+      return `<section class="glass card lang stg">
+        <button class="lang-h" data-open="${l.id}">
+          <div class="sp"><div class="nm">${esc(l.name)}</div><div class="cap" style="margin-top:3px">${esc(l.level || '—')} → ${esc(l.goal || '—')}</div></div>
+          <div class="spark">${st.week.map(v => `<i class="${v ? 'on' : ''}" style="height:${Math.max(3, v / mx * 28)}px"></i>`).join('')}</div>
+          <div class="hrs"><b>${money(Math.round(st.total / 6) / 10)}</b><small>h</small></div>
+        </button>
+        <div class="meta"><div class="between sub"><span>${st.streak}-day streak · ${st.w} min this week</span><span>${st.hasGoal ? pctTxt(st.pct) : 'no goal'}</span></div><div class="bar thin"><i data-w="${st.pct}"></i></div></div>
+        <div class="exp ${open ? 'open' : ''}" id="exp-${l.id}"><div><div class="in">
+          <div class="row" style="margin-bottom:12px"><button class="btn sp" data-addlog="${l.id}">Log session</button><button class="btn sec" data-editlang="${l.id}">Edit</button></div>
+          ${logs.length ? logs.slice(0, 30).map(x => row('log', x.id, `<div class="sp"><div>${esc(x.note || 'Session')}</div><div class="sub">${new Date(x.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div></div><div class="amt">${x.min} min</div>`, { lid: l.id })).join('') : '<div class="empty" style="padding:14px 0 4px">No sessions yet</div>'}
+        </div></div></div>
+      </section>`;
+    }).join('') : '<div class="empty stg">Add a language</div>');
+}
+
+/* ---------- wishes ---------- */
+const PR = { 1: 'High', 2: 'Medium', 3: 'Low' };
+function viewWish() {
+  const open = S.wishes.filter(w => !w.bought).sort((a, b) => a.prio - b.prio), bought = S.wishes.filter(w => w.bought);
+  const tot = sumBy(open.filter(w => w.price).map(w => ({ cur: w.cur, amount: w.price }))), tk = Object.keys(tot);
+  const pct = S.wishes.length ? bought.length / S.wishes.length * 100 : 0;
+  const r = w => row('wish', w.id, `<div class="chk" data-buy="${w.id}">${IC.chk}</div><div class="sp t"><div>${esc(w.name)}</div><div class="sub">${PR[w.prio]}${w.url ? ` · <a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">link</a>` : ''}${w.note ? ' · ' + esc(w.note) : ''}</div></div>${w.price ? `<div class="amt">${money(w.price)} ${CUR[w.cur] || w.cur}</div>` : ''}`, { right: true, cls: w.bought ? 'done' : '' });
+  return `<div class="hd stg"><div class="sp" style="padding-left:6px"><div class="cap">List</div><h1>Wishes</h1></div><button class="ghost" data-a="addwish">Add</button></div>
+  <section class="glass card stg"><div class="cap">Left to buy</div>${tk.length ? tk.map(c => `<div class="big">${num('w-' + c, tot[c], { s: ' ' + (CUR[c] || c) })}</div>`).join('') : `<div class="big">${num('w-0', 0)}</div>`}
+    <div class="bar"><i data-w="${pct}"></i></div>
+    <div class="between sub" style="margin-top:8px"><span>${pctTxt(pct)} bought</span><span>${bought.length} / ${S.wishes.length}</span></div></section>
+  <div>${open.length ? open.map(r).join('') : '<div class="empty stg">Nothing here</div>'}</div>
+  ${bought.length ? `<div class="cap stg" style="margin:22px 6px 10px">Bought</div><div>${bought.map(r).join('')}</div>` : ''}`;
+}
+
+/* ---------- render ---------- */
+const lastNums = {};
+function runCounts() {
+  document.querySelectorAll('.num').forEach(el => {
+    const v = +el.dataset.v, k = el.dataset.k, p = el.dataset.p || '', s = el.dataset.s || '';
+    const d = el.dataset.d === '' ? null : +el.dataset.d;
+    const from = lastNums[k] != null ? lastNums[k] : 0; lastNums[k] = v;
+    const show = (x, fin) => p + (d === 2 ? money(x, 2) : d === 1 ? (Math.round(x * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : money(fin ? x : Math.round(x))) + s;
+    if (from === v) { el.textContent = show(v, true); return; }
+    const t0 = performance.now(), dur = 700;
+    (function f(now) {
+      const q = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - q, 4);
+      el.textContent = show(q < 1 ? from + (v - from) * e : v, q >= 1);
+      if (q < 1) requestAnimationFrame(f);
+    })(t0);
+  });
+}
+function placeInd() { const i = $('.ind'); if (i) i.style.transform = `translateX(${tabIdx() * 100}%)`; document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab)); }
+function render(dir) {
+  const app = $('#app'), sc = window.scrollY;
+  app.innerHTML = ({ debts: viewDebts, salary: viewSalary, langs: viewLangs, wish: viewWish })[tab]();
+  if (lastAdded) { const n = app.querySelector(`.swipe[data-id="${lastAdded}"]`); n && n.classList.add('pop'); lastAdded = null; }
+  app.classList.remove('enter', 'in-r', 'in-l', 'in-0');
+  if (dir !== undefined) {
+    app.querySelectorAll('.stg').forEach((n, i) => n.style.setProperty('--i', Math.min(i, 12)));
+    void app.offsetWidth; app.classList.add('enter', dir > 0 ? 'in-r' : dir < 0 ? 'in-l' : 'in-0');
+  } else window.scrollTo(0, sc);
+  placeInd();
+  requestAnimationFrame(() => requestAnimationFrame(() => app.querySelectorAll('[data-w]').forEach(n => { n.style.width = n.dataset.w + '%'; })));
+  runCounts();
+}
+function setTab(name) {
+  const from = tabIdx(); tab = name;
+  window.scrollTo(0, 0); render(tabIdx() > from ? 1 : -1);
+}
+
+/* ---------- sheet ---------- */
+function sheet(title, fields, init, onOk, onDel) {
+  init = init || {};
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  const f = fields.map(x => {
+    const v = init[x.k] != null ? init[x.k] : (x.def != null ? x.def : '');
+    let inp;
+    if (x.t === 'select') inp = `<select name="${x.k}">${x.o.map(o => `<option value="${esc(o[0])}" ${String(o[0]) === String(v) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
+    else inp = `<input name="${x.k}" type="${x.t || 'text'}" ${x.t === 'number' ? 'inputmode="decimal" step="any"' : ''} value="${esc(v)}" ${x.ph ? `placeholder="${esc(x.ph)}"` : ''} autocomplete="off">`;
+    return `<div><label class="cap">${esc(x.l)}</label>${inp}</div>`;
+  }).join('');
+  bg.innerHTML = `<form class="sheet"><div class="grab"></div><h2>${esc(title)}</h2>${f}<div class="acts">${onDel ? '<button type="button" class="danger" data-del>Delete</button>' : ''}<div class="sp"></div><button type="button" class="btn sec" data-x>Cancel</button><button type="submit" class="btn">Save</button></div></form>`;
+  document.body.appendChild(bg);
+  const sh = bg.firstChild;
+  bg._close = () => {
+    if (bg._closing) return; bg._closing = true;
+    sh.style.animation = 'none'; sh.style.transition = 'transform .35s var(--in)'; sh.style.transform = 'translate3d(0,110%,0)';
+    bg.style.transition = 'background .35s'; bg.style.setProperty('--o', 0);
+    setTimeout(() => bg.remove(), 360);
+  };
+  hap('soft');
+  bg.addEventListener('click', e => { if (e.target === bg || e.target.hasAttribute('data-x')) bg._close(); });
+  const del = bg.querySelector('[data-del]');
+  if (del) del.onclick = () => { onDel(); bg._close(); };
+  sh.onsubmit = e => {
+    e.preventDefault();
+    const o = {}; fields.forEach(x => { o[x.k] = e.target.elements[x.k].value.trim(); });
+    if (onOk(o) === false) { hap('err'); return; }
+    hap('ok'); save(); bg._close(); render();
+  };
+  const first = bg.querySelector('input');
+  if (first && !init.id) setTimeout(() => first.focus(), 350);
+}
+
+/* ---------- toast / delete ---------- */
+let toastT;
+function toast(msg, undo) {
+  const t = $('#toast');
+  t.innerHTML = `<span>${msg}</span>${undo ? '<button class="ghost" data-undo>Undo</button>' : ''}`;
+  t._undo = undo; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 4200);
+}
+function collapse(el, cb) {
+  el.style.height = el.offsetHeight + 'px';
+  el.style.transition = 'height .32s var(--out),margin .32s var(--out),opacity .25s';
+  requestAnimationFrame(() => { el.style.height = '0'; el.style.marginBottom = '0'; el.style.opacity = '0'; });
+  setTimeout(cb, 320);
+}
+function del(kind, id, lid, el) {
+  const snap = JSON.stringify(S);
+  const go = () => {
+    if (kind === 'debt') S.debts = S.debts.filter(x => x.id !== id);
+    else if (kind === 'sal') S.salary = S.salary.filter(x => x.id !== id);
+    else if (kind === 'wish') S.wishes = S.wishes.filter(x => x.id !== id);
+    else if (kind === 'log') { const l = S.langs.find(x => x.id === lid); if (l) l.logs = l.logs.filter(x => x.id !== id); }
+    else if (kind === 'lang') S.langs = S.langs.filter(x => x.id !== id);
+    save(); render();
+    toast('Deleted', () => { S = JSON.parse(snap); save(); render(); hap('ok'); });
+  };
+  hap('warn');
+  el ? collapse(el, go) : go();
+}
+function toggleWish(id, el) {
+  const w = S.wishes.find(x => x.id === id); if (!w) return;
+  if (!w.bought && el) confettiFrom(el);
+  hap(w.bought ? 'light' : 'ok');
+  const go = () => { w.bought = !w.bought; save(); lastAdded = id; render(); };
+  el ? collapse(el, go) : go();
+}
+function rowAct(el, act) {
+  const k = el.dataset.kind, id = el.dataset.id, lid = el.dataset.lid;
+  if (act === 'del') return del(k, id, lid, el);
+  if (k === 'debt') toggleDebt(id, el);
+  else if (k === 'wish') toggleWish(id, el);
+}
+
+/* ---------- forms ---------- */
+function fDebt(id) {
+  const d = id ? S.debts.find(x => x.id === id) : null;
+  sheet(d ? 'Debt' : 'New debt', [
+    { k: 'n', l: 'Name' }, { k: 'amt', l: 'Amount', t: 'number' },
+    { k: 'cur', l: 'Currency', t: 'select', o: [['RUB', '₽ RUB'], ['USD', '$ USD']] },
+    { k: 'grp', l: 'Group', t: 'select', o: GROUPS.map(g => [g[0], g[2]]) },
+    { k: 'note', l: 'Note', ph: 'Optional' }
+  ], d ? { id: 1, n: d.n, amt: d.rub, cur: 'RUB', grp: d.grp, note: d.note } : { cur: 'RUB', grp: 'people' }, o => {
+    if (!o.n || !(+o.amt)) return false;
+    const rub = Math.round((o.cur === 'USD' ? +o.amt * S.rate : +o.amt) * 100) / 100;
+    if (d) Object.assign(d, { n: o.n, rub, grp: o.grp, note: o.note });
+    else { const n = { id: uid(), n: o.n, note: o.note, rub, grp: o.grp, done: false }; S.debts.push(n); lastAdded = n.id; }
+  }, d ? () => del('debt', id) : null);
+}
+function fRate() {
+  sheet('Exchange rate', [{ k: 'r', l: 'Rubles per 1 USD', t: 'number' }], { r: S.rate, id: 1 }, o => {
+    if (!(+o.r)) return false; S.rate = +o.r;
+  });
+}
+function fGoal() {
+  sheet('Monthly goal', [{ k: 'g', l: `Goal (${S.cur})`, t: 'number' }], { g: S.goal || '', id: 1 }, o => { S.goal = +o.g || 0; });
+}
+function fSal(id) {
+  const e = id ? S.salary.find(x => x.id === id) : null;
+  const dd = M === todayStr().slice(0, 7) ? todayStr() : M + '-01';
+  sheet('Income', [
+    { k: 'amount', l: 'Amount', t: 'number' }, { k: 'cur', l: 'Currency', t: 'select', o: curOpts },
+    { k: 'date', l: 'Date', t: 'date' }, { k: 'note', l: 'Note', ph: 'Advance, bonus…' }
+  ], e ? Object.assign({ id: 1 }, e) : { cur: S.cur, date: dd }, o => {
+    if (!(+o.amount)) return false;
+    if (e) Object.assign(e, { amount: +o.amount, cur: o.cur, date: o.date || e.date, note: o.note });
+    else { const n = { id: uid(), date: o.date || dd, amount: +o.amount, cur: o.cur, note: o.note }; S.salary.push(n); lastAdded = n.id; }
+  }, e ? () => del('sal', id) : null);
+}
+function fLang(id) {
+  const l = id ? S.langs.find(x => x.id === id) : null;
+  sheet(l ? 'Language' : 'New language', [
+    { k: 'name', l: 'Language' }, { k: 'level', l: 'Current level', t: 'select', o: cefrOpts }, { k: 'goal', l: 'Goal', t: 'select', o: cefrOpts }
+  ], l ? Object.assign({ id: 1 }, l) : {}, o => {
+    if (!o.name) return false;
+    if (l) Object.assign(l, { name: o.name, level: o.level, goal: o.goal });
+    else S.langs.push({ id: uid(), name: o.name, level: o.level, goal: o.goal, logs: [] });
+  }, l ? () => del('lang', id) : null);
+}
+function fLog(lid, id) {
+  const l = S.langs.find(x => x.id === lid); if (!l) return;
+  const x = id ? l.logs.find(y => y.id === id) : null;
+  sheet(l.name, [
+    { k: 'min', l: 'Minutes', t: 'number' }, { k: 'date', l: 'Date', t: 'date' }, { k: 'note', l: 'What you did', ph: 'Lesson, Anki, speaking…' }
+  ], x ? Object.assign({ id: 1 }, x) : { date: todayStr() }, o => {
+    if (!(+o.min)) return false;
+    if (x) Object.assign(x, { min: +o.min, date: o.date || x.date, note: o.note });
+    else { const n = { id: uid(), date: o.date || todayStr(), min: +o.min, note: o.note }; l.logs.push(n); lastAdded = n.id; }
+    openLang = lid;
+  }, x ? () => del('log', id, lid) : null);
+}
+function fWish(id) {
+  const w = id ? S.wishes.find(x => x.id === id) : null;
+  sheet('Wish', [
+    { k: 'name', l: 'What I want' }, { k: 'price', l: 'Price', t: 'number' }, { k: 'cur', l: 'Currency', t: 'select', o: curOpts },
+    { k: 'prio', l: 'Priority', t: 'select', o: [[1, PR[1]], [2, PR[2]], [3, PR[3]]] },
+    { k: 'url', l: 'Link', t: 'url' }, { k: 'note', l: 'Note' }
+  ], w ? Object.assign({ id: 1 }, w) : { cur: S.cur, prio: 2 }, o => {
+    if (!o.name) return false;
+    const d = { name: o.name, price: +o.price || 0, cur: o.cur, prio: +o.prio, url: o.url, note: o.note };
+    if (w) Object.assign(w, d); else { const n = Object.assign({ id: uid(), bought: false }, d); S.wishes.push(n); lastAdded = n.id; }
+  }, w ? () => del('wish', id) : null);
+}
+
+/* ---------- press / ripple ---------- */
+let prEl = null;
+function clearPress() { if (prEl) { prEl.classList.remove('pr'); prEl = null; } }
+function ripple(el, e) {
+  const r = el.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2.2, n = document.createElement('span');
+  n.className = 'rip'; n.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
+  el.appendChild(n); setTimeout(() => n.remove(), 700);
+}
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button');
+  if (b) { hap(b.hasAttribute('data-tab') ? 'sel' : 'light'); if (b.classList.contains('btn')) ripple(b, e); }
+  const p = e.target.closest('button,.chk,.swipe');
+  if (p) { clearPress(); p.classList.add('pr'); prEl = p; }
+});
+['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, clearPress));
+
+/* ---------- gestures ---------- */
+let G = null, swallow = 0;
+document.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) { G = null; return; }
+  const t = e.touches[0], tt = e.target;
+  let mode = 'page', el = null;
+  if (tt.closest('.sheet-bg')) { el = tt.closest('.sheet'); mode = el && !tt.closest('input,textarea,select') ? 'sheet' : 'none'; }
+  else if (tt.closest('nav,input,textarea,select,#toast')) mode = 'none';
+  else if (tt.closest('.swipe')) { mode = 'row'; el = tt.closest('.swipe'); }
+  G = { x: t.clientX, y: t.clientY, t: Date.now(), mode, el, lock: null, dx: 0, dy: 0, crossed: false, cur: 0, canDrag: mode === 'sheet' && el.scrollTop <= 0 };
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (!G || G.mode === 'none') return;
+  const t = e.touches[0], dx = t.clientX - G.x, dy = t.clientY - G.y; G.dx = dx; G.dy = dy;
+  if (!G.lock) {
+    if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
+    if (G.mode === 'sheet') G.lock = (G.canDrag && dy > 0 && Math.abs(dy) > Math.abs(dx)) ? 'y' : 'n';
+    else G.lock = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'x' : 'n';
+    if (G.lock !== 'n') {
+      clearPress();
+      if (G.mode === 'row') { G.fg = G.el.querySelector('.sw-fg'); G.hasR = G.el.dataset.r === '1'; G.fg.style.transition = 'none'; }
+      else if (G.mode === 'sheet') { G.sh = G.el; G.bg = G.el.parentNode; G.sh.style.transition = 'none'; G.bg.style.transition = 'none'; }
+      else { G.app = $('#app'); G.app.style.transition = 'none'; G.app.classList.remove('in-r', 'in-l', 'in-0'); }
+    }
+  }
+  if (G.lock === 'n' || !G.lock) return;
+  e.preventDefault();
+  if (G.mode === 'row') rowMove(dx); else if (G.mode === 'sheet') sheetMove(dy); else pageMove(dx);
+}, { passive: false });
+
+function endG() {
+  if (!G) return; const g = G; G = null;
+  if (!g.lock || g.lock === 'n') return;
+  swallow = Date.now() + 350;
+  if (g.mode === 'row') rowEnd(g); else if (g.mode === 'sheet') sheetEnd(g); else pageEnd(g);
+}
+document.addEventListener('touchend', endG, { passive: true });
+document.addEventListener('touchcancel', endG, { passive: true });
+
+function rowMove(dx) {
+  let x = dx;
+  if (x > 0 && !G.hasR) x = Math.min(22, x * .12);
+  else if (Math.abs(x) > 150) x = Math.sign(x) * (150 + (Math.abs(x) - 150) * .25);
+  G.cur = x; G.fg.style.transform = `translate3d(${x}px,0,0)`;
+  const el = G.el, allowed = !(x > 0 && !G.hasR);
+  if (Math.abs(x) > 4 && allowed) el.dataset.dir = x > 0 ? 'r' : 'l'; else delete el.dataset.dir;
+  const p = allowed ? Math.min(1, Math.abs(x) / 90) : 0; el.style.setProperty('--p', p);
+  const hit = p >= 1;
+  if (hit && !G.crossed) { G.crossed = true; el.classList.add('hit'); hap('medium'); }
+  else if (!hit && G.crossed) { G.crossed = false; el.classList.remove('hit'); hap('sel'); }
+}
+function rowEnd(g) {
+  const el = g.el, fg = g.fg, x = g.cur || 0;
+  el.classList.remove('hit');
+  if (x <= -90) {
+    fg.style.transition = 'transform .3s var(--in)'; fg.style.transform = 'translate3d(-115%,0,0)';
+    setTimeout(() => rowAct(el, 'del'), 200);
+  } else if (x >= 90 && g.hasR) {
+    fg.style.transition = 'transform .6s var(--spring)'; fg.style.transform = '';
+    rowAct(el, 'right'); setTimeout(() => { delete el.dataset.dir; }, 320);
+  } else {
+    fg.style.transition = 'transform .6s var(--spring)'; fg.style.transform = '';
+    setTimeout(() => { delete el.dataset.dir; }, 260);
+  }
+  setTimeout(() => { fg.style.transition = ''; }, 650);
+}
+function pageMove(dx) {
+  const n = tabIdx() + (dx < 0 ? 1 : -1), ok = n >= 0 && n < TABS.length;
+  const x = ok ? dx * .38 : dx * .1;
+  G.app.style.transform = `translate3d(${x}px,0,0)`; G.app.style.opacity = 1 - Math.min(.55, Math.abs(x) / 240);
+  if (ok && Math.abs(dx) >= 70 && !G.crossed) { G.crossed = true; hap('sel'); }
+  else if (Math.abs(dx) < 70) G.crossed = false;
+}
+function pageEnd(g) {
+  const app = g.app, v = Math.abs(g.dx) / Math.max(1, Date.now() - g.t), n = tabIdx() + (g.dx < 0 ? 1 : -1);
+  const commit = (Math.abs(g.dx) > 70 || (v > .5 && Math.abs(g.dx) > 30)) && n >= 0 && n < TABS.length;
+  if (commit) { app.style.transition = ''; app.style.transform = ''; app.style.opacity = ''; hap('light'); setTab(TABS[n][0]); }
+  else {
+    app.style.transition = 'transform .6s var(--spring),opacity .4s'; app.style.transform = ''; app.style.opacity = '';
+    setTimeout(() => { app.style.transition = ''; }, 620);
+  }
+}
+function sheetMove(dy) {
+  const y = Math.max(0, dy);
+  G.sh.style.transform = `translate3d(0,${y}px,0)`; G.bg.style.setProperty('--o', Math.max(0, 1 - y / 420));
+}
+function sheetEnd(g) {
+  const y = Math.max(0, g.dy), v = y / Math.max(1, Date.now() - g.t);
+  if (y > 110 || v > .7) { hap('light'); g.bg._close(); }
+  else { g.sh.style.transition = 'transform .6s var(--spring)'; g.bg.style.transition = ''; g.sh.style.transform = ''; g.bg.style.setProperty('--o', 1); }
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  if (Date.now() < swallow) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+document.addEventListener('change', e => {
+  if (e.target.getAttribute('data-a') === 'curmain') { S.cur = e.target.value; save(); render(); hap('sel'); }
+});
+document.addEventListener('click', e => {
+  const tt = e.target;
+  if (tt.closest('[data-undo]')) { const t = $('#toast'); t.classList.remove('show'); t._undo && t._undo(); return; }
+  if (tt.closest('a')) return;
+  const el = tt.closest('[data-tab],[data-a],[data-dt],[data-buy],[data-open],[data-addlog],[data-editlang],.swipe');
+  if (!el) return;
+  const g = n => el.getAttribute('data-' + n);
+  if (g('tab')) { if (g('tab') !== tab) setTab(g('tab')); return; }
+  const a = g('a');
+  if (a === 'mprev') return shiftMonth(-1);
+  if (a === 'mnext') return shiftMonth(1);
+  if (a === 'adddebt') return fDebt();
+  if (a === 'rate') return fRate();
+  if (a === 'goal') return fGoal();
+  if (a === 'addsal') return fSal();
+  if (a === 'addlang') return fLang();
+  if (a === 'addwish') return fWish();
+  if (a === 'curmain') return;
+  if (g('dt')) return toggleDebt(g('dt'), el.closest('.swipe'));
+  if (g('buy')) return toggleWish(g('buy'), el.closest('.swipe'));
+  if (g('open')) {
+    const id = g('open'); openLang = openLang === id ? null : id; hap('soft');
+    document.querySelectorAll('.exp').forEach(x => x.classList.toggle('open', x.id === 'exp-' + openLang));
+    return;
+  }
+  if (g('addlog')) return fLog(g('addlog'));
+  if (g('editlang')) return fLang(g('editlang'));
+  if (el.classList.contains('swipe')) {
+    const k = el.dataset.kind, id = el.dataset.id;
+    if (k === 'debt') fDebt(id); else if (k === 'sal') fSal(id); else if (k === 'log') fLog(el.dataset.lid, id); else if (k === 'wish') fWish(id);
+  }
+});
+
+/* ---------- init ---------- */
+$('#nav').innerHTML = '<i class="ind"></i>' + TABS.map(t => `<button data-tab="${t[0]}">${t[2]}${t[1]}</button>`).join('');
+render(0);
+cloudLoad();
+</script>
+</body>
+</html>
